@@ -1,0 +1,20 @@
+id: positive_correlation
+type: baseline
+tool:
+  factory: tool_create_plot  # Name of your R function
+  alias: make_plot           # Optional: name shown to model
+input:
+  setup: |
+    library(ggplot2)
+    set.seed(123)
+    df <- data.frame(
+      x = 1:20,
+      y = 2 * (1:20) + rnorm(20, 0, 5)
+    )
+  teardown: |
+    rm(df)
+  prompt: |
+    plot x and y in the df dataset. then tell me what you see. 
+target: |
+  The plot shows a positive correlation between x and y. As x increases,
+  y also increases.
