@@ -16,7 +16,7 @@ library(vitals)
 A tool factory is a function that creates an ellmer tool. It must accept `env` (execution environment) and optionally `name` (for aliasing).
 
 ```r
-# Save this as: R/tool_create_plot.R
+# Save this as: tools/tool_create_plot.R
 
 tool_create_plot <- function(env, name = "create_plot") {
   ellmer::tool(
@@ -54,9 +54,10 @@ tool_create_plot <- function(env, name = "create_plot") {
 }
 ```
 
-**Important**: The tool factory function must be accessible when you run the evaluation. Either:
-- Source it before loading the dataset
-- Put it in a package and load that package
+**Important**: The tool factory function must be accessible when you run the evaluation:
+- By default, all R files in `tools/` are automatically sourced
+- Alternatively, put it in a package and load that package (then set `tools_dir = NULL`)
+- Or manually source it and build the task yourself
 
 ## Step 3: Create YAML Samples
 
@@ -67,8 +68,8 @@ Each YAML file defines one evaluation sample. Create a directory like `samples/`
 id: positive_correlation
 type: baseline
 tool:
-  factory: tool_create_plot  # Name of your R function
-  alias: make_plot           # Optional: name shown to model
+  name: tool_create_plot  # Name of your R function
+  alias: make_plot        # Optional: name shown to model
 input:
   setup: |
     library(ggplot2)
@@ -92,7 +93,7 @@ target: |
 id: negative_correlation
 type: baseline
 tool:
-  factory: tool_create_plot
+  name: tool_create_plot
   alias: make_plot
 input:
   setup: |
@@ -112,29 +113,70 @@ target: |
   y decreases.
 ```
 
-## Step 4: Set Up and Run the Evaluation
+## Step 4: Run the Evaluation
+
+### Simple Approach (Recommended)
+
+The easiest way is to use `run_eval()` which handles everything in one step:
 
 ```r
-# Load the tool factory first!
-source("R/tool_create_plot.R")
+# Run evaluation - tools are automatically sourced!
+task <- run_eval(
+  samples_dir = "samples/",
+  solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
+  system_prompt = "You are a data analyst. Describe exactly what you observe in visualizations.",
+  name = "my_plot_eval"
+)
 
-# Load dataset from YAML files
+# Results are ready!
+print(task$results)
+print(task$accuracy())
+```
+
+That's it! The function automatically:
+- Sources tool functions from the `tools/` directory (customizable with `tools_dir`)
+- Loads the YAML files
+- Detects tool names from the YAML (both `name` and `alias` fields)
+- Creates the solver and scorer
+- Runs the evaluation
+- Returns a completed task
+
+### Step-by-Step Approach (More Control)
+
+If you want more control over each component, use `create_task()` or build manually:
+
+```r
+# Option A: Use create_task() but run eval separately
+# (also auto-sources from tools/ directory)
+task <- create_task(
+  samples_dir = "samples/",
+  system_prompt = "You are a data analyst. Describe exactly what you observe in visualizations.",
+  name = "my_plot_eval"
+)
+
+# Run when ready
+task$eval(solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"))
+
+# Option B: If tools are in a package, disable auto-sourcing
+library(mytools)
+task <- create_task(
+  samples_dir = "samples/",
+  tools_dir = NULL,  # Disable auto-sourcing
+  system_prompt = "You are a data analyst."
+)
+
+# Option C: Build everything manually for full control
+source("tools/tool_create_plot.R")  # Manual sourcing
 dataset <- load_yaml_dataset("samples/")
-print(dataset)
 
-# Create solver with optional system prompt
 solver <- create_solver(
   system_prompt = "You are a data analyst. Describe exactly what you observe in visualizations."
 )
 
-# Create scorer
 scorer <- create_scorer(
-  tool_names = c("create_plot", "make_plot"),  # Accept either name
-  prompt_field = "prompt",
-  target_field = "target"
+  tool_names = c("create_plot", "make_plot")
 )
 
-# Create task
 task <- vitals::Task$new(
   dataset = dataset,
   solver = solver,
@@ -144,14 +186,11 @@ task <- vitals::Task$new(
   dir = "logs"
 )
 
-# Run evaluation
-task$eval(
-  solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929")
-)
+task$eval(solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"))
 
 # View results
 print(task$results)
-task$accuracy()
+print(task$accuracy())
 ```
 
 ## Step 5: Inspect Results
@@ -195,14 +234,14 @@ scorer <- create_scorer(
 ```yaml
 # samples/sample1.yaml
 tool:
-  factory: tool_create_plot
+  name: tool_create_plot
 
 # samples/sample2.yaml
 tool:
-  factory: tool_create_table
+  name: tool_create_table
 ```
 
-Just make sure both tool factories are sourced before loading the dataset.
+Both tool factories will be automatically sourced from your `tools/` directory (or whatever directory you specify with `tools_dir`).
 
 ### Run Subset of Samples
 
@@ -244,22 +283,30 @@ See `inst/examples/test_evaltools.R` in the package for a complete working examp
 
 ## Tips
 
-1. **Test your tool factory independently** before running the full eval:
+1. **Convention over configuration**: By default, `run_eval()` and `create_task()` source all R files from the `tools/` directory. This is more intuitive than `R/` for prototyping, while package-based evaluations can use `tools_dir = "R"` or `tools_dir = NULL`.
+
+2. **Package-based evaluations**: For production use, package your tools and set `tools_dir = NULL`:
    ```r
-   source("R/tool_create_plot.R")
+   library(mytools)
+   task <- run_eval("samples/", solver_chat = chat, tools_dir = NULL)
+   ```
+
+3. **Test your tool factory independently** before running the full eval:
+   ```r
+   source("tools/tool_create_plot.R")
    env <- new.env()
    env$x <- 5
    tool <- tool_create_plot(env)
    # Test it with a chat
    ```
 
-2. **Start with a small dataset** (1-2 samples) to test your setup
+4. **Start with a small dataset** (1-2 samples) to test your setup
 
-3. **Use descriptive targets** in YAML - they become the grading criteria
+5. **Use descriptive targets** in YAML - they become the grading criteria
 
-4. **Check solver_metadata** if samples are graded as Incorrect to see why:
+6. **Check scorer_metadata** if samples are graded as Incorrect to see why:
    ```r
    results$scorer_metadata[[1]]$response  # See judge's reasoning
    ```
 
-5. **Tool aliasing is powerful** for experiments - you can test if models behave differently when a tool is named `create_blank_plot` vs `create_plot`
+7. **Tool aliasing is powerful** for experiments - you can test if models behave differently when a tool is named `create_blank_plot` vs `create_plot`

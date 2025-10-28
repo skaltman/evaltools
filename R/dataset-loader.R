@@ -25,7 +25,7 @@
 #' id: sample_id
 #' type: baseline              # optional
 #' tool:
-#'   factory: tool_create_plot  # R function name
+#'   name: tool_create_plot     # R function name
 #'   alias: make_plot           # optional
 #' input:
 #'   setup: |
@@ -94,7 +94,7 @@ load_yaml_dataset <- function(
           prompt = sample$input$prompt,
           setup = sample$input$setup,
           teardown = sample$input$teardown,
-          tool_factory = sample$tool$factory,
+          tool_factory = sample$tool$name,
           tool_alias = if (!is.null(sample$tool$alias)) {
             sample$tool$alias
           } else {
@@ -144,9 +144,9 @@ validate_sample <- function(sample, file, required_fields) {
   }
 
   # Check tool structure
-  if (is.null(sample$tool$factory)) {
+  if (is.null(sample$tool$name)) {
     cli::cli_abort(
-      "Sample in {.path {file}} has tool specification without {.field factory}"
+      "Sample in {.path {file}} has tool specification without {.field name}"
     )
   }
 

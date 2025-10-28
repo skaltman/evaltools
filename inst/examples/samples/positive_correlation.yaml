@@ -1,8 +1,8 @@
 id: positive_correlation
 type: baseline
 tool:
-  factory: tool_create_plot  # Name of your R function
-  alias: make_plot           # Optional: name shown to model
+  name: tool_create_plot  # Name of your R function
+  alias: make_plot        # Optional: name shown to model
 input:
   setup: |
     library(ggplot2)

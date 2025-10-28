@@ -7,6 +7,9 @@
 #' @param samples_dir Character string path to directory containing YAML sample files.
 #' @param system_prompt Optional character string with system prompt for all samples.
 #'   Default is NULL (no system prompt).
+#' @param tools_dir Character string path to directory containing tool factory R files
+#'   to source. Default is "tools". Set to NULL to disable auto-sourcing (e.g., if
+#'   tools are already loaded from a package).
 #' @param tool_names Character vector of tool names to check for in scorer.
 #'   If NULL (default), automatically extracts tool names from the dataset's
 #'   tool aliases. You only need to specify this if you want to check for
@@ -29,13 +32,17 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Create task (still need to source tool factories first!)
-#' source("R/tool_create_plot.R")
-#'
-#' # Tool names are auto-detected from YAML files
+#' # Tools automatically sourced from tools/ directory
 #' task <- create_task(
 #'   samples_dir = "samples/",
 #'   system_prompt = "You are a careful analyst."
+#' )
+#'
+#' # Disable auto-sourcing if tools are in a package
+#' library(mytools)
+#' task <- create_task(
+#'   samples_dir = "samples/",
+#'   tools_dir = NULL
 #' )
 #'
 #' # Run evaluation
@@ -48,6 +55,7 @@
 create_task <- function(
   samples_dir,
   system_prompt = NULL,
+  tools_dir = "tools",
   tool_names = NULL,
   scorer_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
   scorer_instructions = default_judge_instructions(),
@@ -57,6 +65,10 @@ create_task <- function(
   dir = "logs",
   ...
 ) {
+  # Auto-source tool files if tools_dir is specified and exists
+  if (!is.null(tools_dir)) {
+    source_tools(tools_dir)
+  }
   # Load dataset
   dataset <- load_yaml_dataset(samples_dir)
 
@@ -104,9 +116,7 @@ create_task <- function(
 #'
 #' @examples
 #' \dontrun{
-#' # Source your tool factories first!
-#' source("R/tool_create_plot.R")
-#'
+#' # Tools automatically sourced from tools/ directory
 #' # Run evaluation in one line (tool names auto-detected!)
 #' task <- run_eval(
 #'   samples_dir = "samples/",
@@ -117,11 +127,20 @@ create_task <- function(
 #' # Results are ready
 #' print(task$results)
 #' print(task$accuracy())
+#'
+#' # If tools are in a package, disable auto-sourcing
+#' library(mytools)
+#' task <- run_eval(
+#'   samples_dir = "samples/",
+#'   solver_chat = chat,
+#'   tools_dir = NULL
+#' )
 #' }
 run_eval <- function(
   samples_dir,
   solver_chat,
   system_prompt = NULL,
+  tools_dir = "tools",
   tool_names = NULL,
   scorer_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
   scorer_instructions = default_judge_instructions(),
@@ -135,6 +154,7 @@ run_eval <- function(
   task <- create_task(
     samples_dir = samples_dir,
     system_prompt = system_prompt,
+    tools_dir = tools_dir,
     tool_names = tool_names,
     scorer_chat = scorer_chat,
     scorer_instructions = scorer_instructions,
@@ -195,4 +215,70 @@ extract_tool_names <- function(dataset) {
   }
 
   unique_names
+}
+
+#' Source tool factory files from a directory
+#'
+#' Internal helper to source all R files from a specified directory. This is
+#' used to automatically load tool factory functions before running evaluations.
+#'
+#' @param tools_dir Character string path to directory containing R files.
+#'
+#' @return Invisibly returns a character vector of sourced file paths.
+#' @keywords internal
+source_tools <- function(tools_dir) {
+  # Check if directory exists
+  if (!dir.exists(tools_dir)) {
+    cli::cli_alert_warning(
+      "Tools directory {.path {tools_dir}} not found. Skipping auto-sourcing."
+    )
+    cli::cli_text("")
+    cli::cli_bullets(c(
+      "i" = "Set {.code tools_dir = NULL} if tools are already loaded from a package",
+      "i" = "Or create the directory and add your tool files",
+      "i" = "Run {.code setup_eval()} to create a template project"
+    ))
+    return(invisible(character(0)))
+  }
+
+  # Find all R files
+  r_files <- list.files(
+    tools_dir,
+    pattern = "\\.[Rr]$",
+    full.names = TRUE,
+    recursive = FALSE
+  )
+
+  if (length(r_files) == 0) {
+    cli::cli_inform(
+      "No R files found in {.path {tools_dir}}. Skipping auto-sourcing."
+    )
+    return(invisible(character(0)))
+  }
+
+  # Source each file
+  cli::cli_inform("Sourcing {length(r_files)} file{?s} from {.path {tools_dir}}")
+
+  sourced <- character(0)
+  for (file in r_files) {
+    tryCatch(
+      {
+        source(file, local = FALSE)
+        sourced <- c(sourced, file)
+      },
+      error = function(e) {
+        cli::cli_warn(
+          "Failed to source {.path {basename(file)}}: {e$message}"
+        )
+      }
+    )
+  }
+
+  if (length(sourced) > 0) {
+    cli::cli_inform(
+      "Successfully sourced: {.file {basename(sourced)}}"
+    )
+  }
+
+  invisible(sourced)
 }

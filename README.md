@@ -23,11 +23,41 @@ remotes::install_github("skaltman/evaltools")
 
 ## Quick Start
 
+### Setup a New Project
+
+The easiest way to get started is with `setup_eval()`:
+
+```r
+library(evaltools)
+
+# Create a new evaluation project with templates
+setup_eval()
+```
+
+This creates:
+- `tools/` directory with an example tool
+- `samples/` directory with an example YAML file
+- `README.md` with instructions
+
+### Project Structure
+
+A typical evaluation project looks like this:
+
+```
+my-eval/
+├── tools/
+│   └── tool_create_plot.R    # Your tool functions
+└── samples/
+    ├── sample1.yaml          # Evaluation samples
+    └── sample2.yaml
+```
+
 ### 1. Define a Tool Factory
 
 Create a function that generates an ellmer tool. The function should accept `env` (execution environment) and optionally `name` (for aliasing):
 
 ```r
+# Save as: tools/tool_create_plot.R
 library(ellmer)
 
 tool_create_plot <- function(env, name = "create_plot") {
@@ -59,7 +89,7 @@ Each sample should specify the tool to use, setup code, a prompt, and expected t
 id: positive_correlation
 type: baseline
 tool:
-  factory: tool_create_plot
+  name: tool_create_plot
   alias: make_plot  # Optional: name shown to model
 input:
   setup: |
@@ -73,26 +103,60 @@ target: |
   The plot shows a positive correlation between x and y.
 ```
 
-### 3. Load Dataset and Create Task
+### 3. Run the Evaluation
 
 ```r
 library(evaltools)
+
+# Run evaluation - tools automatically sourced from tools/ directory!
+task <- run_eval(
+  samples_dir = "samples/",
+  solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
+  system_prompt = "You are an expert data analyst.",
+  name = "my_eval"
+)
+
+# View results
+task$results
+task$accuracy()
+```
+
+**That's it!** The `run_eval()` function automatically:
+- Sources tool functions from the `tools/` directory
+- Loads YAML files from `samples/`
+- Detects tool names from the YAML
+- Creates solver/scorer and runs the evaluation
+
+<details>
+<summary>Advanced: Custom setup options</summary>
+
+```r
+# If your tools are in a package, disable auto-sourcing
+library(evaltools)
+library(mytools)  # Package with your tool functions
+
+task <- run_eval(
+  samples_dir = "samples/",
+  solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
+  tools_dir = NULL  # Disable auto-sourcing
+)
+
+# Custom tools directory (e.g., for R package structure)
+task <- run_eval(
+  samples_dir = "samples/",
+  solver_chat = chat,
+  tools_dir = "R/"  # Use R/ for package-based evaluations
+)
+
+# Full manual control
 library(vitals)
 
-# Load samples
+source("tools/tool_create_plot.R")
+
 dataset <- load_yaml_dataset("samples/")
+solver <- create_solver(system_prompt = "You are an expert data analyst.")
+scorer <- create_scorer(tool_names = c("create_plot", "make_plot"))
 
-# Create solver with optional system prompt
-solver <- create_solver(
-  system_prompt = "You are an expert data analyst."
-)
-
-# Create scorer
-scorer <- create_scorer(
-  tool_names = c("create_plot", "make_plot")
-)
-
-# Create task
 task <- vitals::Task$new(
   dataset = dataset,
   solver = solver,
@@ -101,14 +165,11 @@ task <- vitals::Task$new(
   name = "my_eval"
 )
 
-# Run evaluation
-task$eval(
-  solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929")
-)
-
-# View results
-task$results
+task$eval(solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"))
 ```
+
+</details>
+
 
 ## Key Features
 
@@ -118,8 +179,8 @@ Tools can have an internal name (in the R function) and a different name exposed
 
 ```yaml
 tool:
-  factory: tool_make_blank_plot  # Internal R function
-  alias: create_plot             # Name shown to model
+  name: tool_make_blank_plot  # Internal R function
+  alias: create_plot          # Name shown to model
 ```
 
 This is useful for:
@@ -161,11 +222,11 @@ Different samples can use different tools:
 ```yaml
 # sample1.yaml
 tool:
-  factory: tool_create_plot
+  name: tool_create_plot
 
 # sample2.yaml
 tool:
-  factory: tool_create_table
+  name: tool_create_table
 ```
 
 ## YAML Schema
@@ -176,7 +237,7 @@ Each YAML file should follow this structure:
 id: unique_identifier          # Required
 type: category                  # Optional
 tool:                          # Required
-  factory: tool_function_name  # Required: R function that creates the tool
+  name: tool_function_name     # Required: R function that creates the tool
   alias: exposed_name          # Optional: Name shown to model
 input:                         # Required
   setup: |                     # Required: R code to run before prompt
@@ -191,9 +252,23 @@ target: |                      # Required: Expected observation for grading
 
 ## Functions
 
+### Setup Functions
+
+- `setup_eval()`: Create a new evaluation project with template files and directory structure
+
+### High-Level Functions (Recommended)
+
+- `run_eval()`: Run a complete evaluation in one step (loads YAML, creates task, runs eval)
+- `create_task()`: Create a task from YAML samples (like `run_eval()` but doesn't run it yet)
+
+### Component Functions (For Advanced Usage)
+
 - `create_solver()`: Create a solver function for vitals::Task
 - `create_scorer()`: Create a scorer function for vitals::Task
 - `load_yaml_dataset()`: Load YAML samples into a tibble
+
+### Utility Functions
+
 - `instantiate_tool()`: Call a tool factory with optional aliasing
 - `create_tool_factory()`: Helper for creating standardized tool factories
 - `format_judge_prompt()`: Format prompts for LLM judges

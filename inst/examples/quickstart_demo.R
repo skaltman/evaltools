@@ -60,7 +60,7 @@ writeLines(
   "id: positive_correlation
 type: baseline
 tool:
-  factory: tool_create_plot
+  name: tool_create_plot
   alias: make_viz
 input:
   setup: |
@@ -82,7 +82,7 @@ writeLines(
   "id: negative_correlation
 type: baseline
 tool:
-  factory: tool_create_plot
+  name: tool_create_plot
   alias: make_viz
 input:
   setup: |

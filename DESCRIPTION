@@ -18,9 +18,10 @@ Imports:
     glue,
     purrr,
     tibble,
+    vitals,
     withr,
     yaml
 Suggests:
-    testthat (>= 3.0.0),
-    vitals
+    ggplot2,
+    testthat (>= 3.0.0)
 Config/testthat/edition: 3
