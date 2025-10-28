@@ -2,3 +2,9 @@
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
+^\.git$
+^\.gitignore$
+^\.claude$
+^logs$
+^README\.Rmd$
+^vignettes/.*\.md$
