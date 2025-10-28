@@ -11,9 +11,9 @@ library(ellmer)
 library(vitals)
 ```
 
-## Step 2: Create a Tool Factory
+## Step 2: Create Your Tool
 
-A tool factory is a function that creates an ellmer tool. It must accept `env` (execution environment) and optionally `name` (for aliasing).
+Define a tool function that creates an ellmer tool. It must accept `env` (execution environment) and optionally `name` (for aliasing).
 
 ```r
 # Save this as: tools/tool_create_plot.R
@@ -54,7 +54,7 @@ tool_create_plot <- function(env, name = "create_plot") {
 }
 ```
 
-**Important**: The tool factory function must be accessible when you run the evaluation:
+**Important**: Your tool function must be accessible when you run the evaluation:
 - By default, all R files in `tools/` are automatically sourced
 - Alternatively, put it in a package and load that package (then set `tools_dir = NULL`)
 - Or manually source it and build the task yourself
@@ -241,7 +241,7 @@ tool:
   name: tool_create_table
 ```
 
-Both tool factories will be automatically sourced from your `tools/` directory (or whatever directory you specify with `tools_dir`).
+Both tool functions will be automatically sourced from your `tools/` directory (or whatever directory you specify with `tools_dir`).
 
 ### Run Subset of Samples
 
@@ -291,7 +291,7 @@ See `inst/examples/test_evaltools.R` in the package for a complete working examp
    task <- run_eval("samples/", solver_chat = chat, tools_dir = NULL)
    ```
 
-3. **Test your tool factory independently** before running the full eval:
+3. **Test your tool independently** before running the full eval:
    ```r
    source("tools/tool_create_plot.R")
    env <- new.env()
