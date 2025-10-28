@@ -40,7 +40,7 @@ Each YAML file should have the following structure:
 id: sample_id
 type: baseline              # optional
 tool:
-  factory: tool_create_plot  # R function name
+  name: tool_create_plot     # R function name
   alias: make_plot           # optional
 input:
   setup: |

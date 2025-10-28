@@ -7,6 +7,7 @@
 create_task(
   samples_dir,
   system_prompt = NULL,
+  tools_dir = "tools",
   tool_names = NULL,
   scorer_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
   scorer_instructions = default_judge_instructions(),
@@ -22,6 +23,10 @@ create_task(
 
 \item{system_prompt}{Optional character string with system prompt for all samples.
 Default is NULL (no system prompt).}
+
+\item{tools_dir}{Character string path to directory containing tool factory R files
+to source. Default is "tools". Set to NULL to disable auto-sourcing (e.g., if
+tools are already loaded from a package).}
 
 \item{tool_names}{Character vector of tool names to check for in scorer.
 If NULL (default), automatically extracts tool names from the dataset's
@@ -56,13 +61,17 @@ of loading data, creating solver/scorer, and building a task.
 }
 \examples{
 \dontrun{
-# Create task (still need to source tool factories first!)
-source("R/tool_create_plot.R")
-
-# Tool names are auto-detected from YAML files
+# Tools automatically sourced from tools/ directory
 task <- create_task(
   samples_dir = "samples/",
   system_prompt = "You are a careful analyst."
+)
+
+# Disable auto-sourcing if tools are in a package
+library(mytools)
+task <- create_task(
+  samples_dir = "samples/",
+  tools_dir = NULL
 )
 
 # Run evaluation

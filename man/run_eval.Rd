@@ -8,6 +8,7 @@ run_eval(
   samples_dir,
   solver_chat,
   system_prompt = NULL,
+  tools_dir = "tools",
   tool_names = NULL,
   scorer_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
   scorer_instructions = default_judge_instructions(),
@@ -25,6 +26,10 @@ run_eval(
 
 \item{system_prompt}{Optional character string with system prompt for all samples.
 Default is NULL (no system prompt).}
+
+\item{tools_dir}{Character string path to directory containing tool factory R files
+to source. Default is "tools". Set to NULL to disable auto-sourcing (e.g., if
+tools are already loaded from a package).}
 
 \item{tool_names}{Character vector of tool names to check for in scorer.
 If NULL (default), automatically extracts tool names from the dataset's
@@ -60,9 +65,7 @@ it at your samples directory and provide a chat object.
 }
 \examples{
 \dontrun{
-# Source your tool factories first!
-source("R/tool_create_plot.R")
-
+# Tools automatically sourced from tools/ directory
 # Run evaluation in one line (tool names auto-detected!)
 task <- run_eval(
   samples_dir = "samples/",
@@ -73,5 +76,13 @@ task <- run_eval(
 # Results are ready
 print(task$results)
 print(task$accuracy())
+
+# If tools are in a package, disable auto-sourcing
+library(mytools)
+task <- run_eval(
+  samples_dir = "samples/",
+  solver_chat = chat,
+  tools_dir = NULL
+)
 }
 }
