@@ -121,46 +121,41 @@ target: |
     cli::cli_alert_info("Sample file already exists: {.file {sample_file}}")
   }
 
-  # Create a simple README
+  # Create a README with instructions
   readme_file <- file.path(path, "README.md")
 
   if (!file.exists(readme_file) || overwrite) {
     readme_template <- glue::glue('
 # Evaluation Project
 
-This is an LLM evaluation project using evaltools.
+LLM evaluation using [evaltools](https://github.com/skaltman/evaltools).
 
-## Structure
-
-- `tools/` - Tool factory functions
-- `samples/` - YAML evaluation samples
-
-## Running the Evaluation
+## Quick Start
 
 ```r
 library(evaltools)
-library(ellmer)
 
-# Run the evaluation
 task <- run_eval(
   samples_dir = "samples/",
-  solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
-  system_prompt = "You are a data analyst.",
-  name = "my_eval"
+  solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929")
 )
 
-# View results
 task$results
 task$accuracy()
 ```
 
+## Structure
+
+- `tools/{tool_name}.R` - Tool function (customize this)
+- `samples/` - YAML evaluation samples (add more here)
+
 ## Next Steps
 
-1. Modify `tools/{tool_name}.R` to create your custom tool
-2. Add more YAML samples in `samples/`
-3. Run the evaluation with your desired model
+1. Edit `tools/{tool_name}.R` for your needs
+2. Add more YAML files to `samples/`
+3. Run the evaluation
 
-See [evaltools documentation](https://github.com/skaltman/evaltools) for more details.
+See the [evaltools docs](https://github.com/skaltman/evaltools) for details.
 ')
 
     writeLines(readme_template, readme_file)
@@ -173,9 +168,9 @@ See [evaltools documentation](https://github.com/skaltman/evaltools) for more de
   cli::cli_rule("Setup Complete!")
   cli::cli_text("")
   cli::cli_bullets(c(
-    "*" = "Created {.path {tools_dir}} with example tool",
-    "*" = "Created {.path {samples_dir}} with example YAML",
-    "*" = "Created README with instructions"
+    "v" = "Created {.path {tools_dir}} with example tool",
+    "v" = "Created {.path {samples_dir}} with example YAML",
+    "v" = "Created {.file README.md} with instructions"
   ))
   cli::cli_text("")
   cli::cli_text("Next steps:")
