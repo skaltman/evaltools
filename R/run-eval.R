@@ -1,32 +1,28 @@
-#' Create an evaluation task from a samples directory
+#' Create an evaluation task
 #'
-#' Convenience function that loads a dataset from YAML files and creates a
-#' vitals::Task with solver and scorer. This abstracts away the common pattern
-#' of loading data, creating solver/scorer, and building a task.
+#' Load YAML samples and create a task with solver and scorer. Usually you'll
+#' use \code{run_eval()} instead, which calls this function and runs the
+#' evaluation automatically.
 #'
-#' @param samples_dir Character string path to directory containing YAML sample files.
-#' @param system_prompt Optional character string with system prompt for all samples.
-#'   Default is NULL (no system prompt).
-#' @param tools_dir Character string path to directory containing tool factory R files
-#'   to source. Default is "tools". Set to NULL to disable auto-sourcing (e.g., if
-#'   tools are already loaded from a package).
-#' @param tool_names Character vector of tool names to check for in scorer.
-#'   If NULL (default), automatically extracts tool names from the dataset's
-#'   tool aliases. You only need to specify this if you want to check for
-#'   additional tool names beyond what's in the YAML files.
-#' @param scorer_chat Optional ellmer Chat object for judging. Default uses
-#'   Claude Sonnet 4.5.
-#' @param scorer_instructions Optional custom instructions for the LLM judge.
-#'   Default uses standard Correct/Incorrect instructions.
-#' @param grade_levels Character vector of valid grade levels. Default is
-#'   c("I", "C") for Incorrect/Correct.
-#' @param epochs Number of evaluation epochs. Default is 1.
-#' @param name Name for the evaluation task. Default is "eval".
-#' @param dir Directory for logging results. Default is "logs".
-#' @param ... Additional arguments passed to create_solver() (e.g., prompt_field,
+#' @param samples_dir Path to directory with YAML sample files.
+#' @param system_prompt System prompt to prepend to all samples. Default NULL.
+#' @param tools_dir Path to directory with tool R files to source. Default "tools".
+#'   Set to NULL if tools are already loaded (e.g., from a package).
+#' @param tool_names Tool names to check in scorer. Default NULL auto-detects from
+#'   YAML files.
+#' @param scorer_chat Chat object for LLM judge. Default uses Claude Sonnet 4.5.
+#' @param scorer_instructions Custom instructions for the judge. Default uses
+#'   Correct/Incorrect grading.
+#' @param grade_levels Valid grades. Default \code{c("I", "C")}.
+#' @param epochs Number of evaluation runs. Default 1.
+#' @param name Task name. Default "eval".
+#' @param dir Logging directory. Default "logs".
+#' @param view Open interactive viewer after running? Default FALSE. If you get
+#'   port conflicts, use \code{vitals::vitals_view(port = custom_port)} instead.
+#' @param ... Additional arguments for \code{create_solver()} (e.g., prompt_field,
 #'   setup_field, sleep_time).
 #'
-#' @return A vitals::Task object ready to run with `task$eval(solver_chat)`.
+#' @return A Task object. Call \code{task$eval(solver_chat)} to run it.
 #'
 #' @export
 #'
@@ -100,41 +96,66 @@ create_task <- function(
   )
 }
 
-#' Run a complete evaluation in one step
+#' Run an evaluation
 #'
-#' Convenience function that creates a task from YAML samples and immediately
-#' runs the evaluation. This is the simplest way to run an eval - just point
-#' it at your samples directory and provide a chat object.
+#' Run an evaluation and get results as a tibble. Point it at your samples
+#' directory and provide one or more language model chat objects. Results
+#' include a model column, scores for each sample, and detailed metadata.
 #'
 #' @inheritParams create_task
-#' @param solver_chat An ellmer Chat object to use for solving samples.
+#' @param solver_chat A chat object, or a named list of chat objects to test
+#'   multiple models at once (e.g., \code{list(sonnet = chat1, opus = chat2)}).
 #'
-#' @return A vitals::Task object with evaluation results already computed.
-#'   Access results with `task$results` and `task$accuracy()`.
+#' @return A tibble with one row per sample per model, containing:
+#'   \itemize{
+#'     \item \code{model}: Which model produced the result
+#'     \item \code{id}: Sample ID from YAML file
+#'     \item \code{epoch}: Evaluation epoch number
+#'     \item \code{score}: Grade ("C" for Correct, "I" for Incorrect, etc.)
+#'     \item \code{metadata}: List column with solver and scorer details
+#'   }
+#'   Task objects are stored in \code{attr(results, "tasks")} for advanced use.
 #'
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' # Tools automatically sourced from tools/ directory
-#' # Run evaluation in one line (tool names auto-detected!)
-#' task <- run_eval(
+#' # Single model evaluation
+#' results <- run_eval(
 #'   samples_dir = "samples/",
-#'   solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
-#'   system_prompt = "You are a careful analyst."
+#'   solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929")
 #' )
 #'
-#' # Results are ready
-#' print(task$results)
-#' print(task$accuracy())
+#' # Calculate accuracy
+#' results |>
+#'   dplyr::summarize(accuracy = mean(score == "C"))
 #'
-#' # If tools are in a package, disable auto-sourcing
-#' library(mytools)
-#' task <- run_eval(
+#' # Multiple models at once
+#' results <- run_eval(
 #'   samples_dir = "samples/",
-#'   solver_chat = chat,
-#'   tools_dir = NULL
+#'   solver_chat = list(
+#'     sonnet = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
+#'     opus = ellmer::chat_anthropic(model = "claude-opus-4-20250514")
+#'   )
 #' )
+#'
+#' # Compare accuracy by model
+#' results |>
+#'   dplyr::group_by(model) |>
+#'   dplyr::summarize(accuracy = mean(score == "C"))
+#'
+#' # Access original Task objects if needed
+#' tasks <- attr(results, "tasks")
+#' tasks$sonnet$accuracy()
+#'
+#' # If you need to view results and have port conflicts:
+#' results <- run_eval(
+#'   samples_dir = "samples/",
+#'   solver_chat = chat_anthropic(model = "claude-sonnet-4-5-20250929"),
+#'   view = FALSE  # Disable automatic viewer
+#' )
+#' # Then manually view with custom port
+#' vitals::vitals_view(port = 8888)
 #' }
 run_eval <- function(
   samples_dir,
@@ -148,28 +169,81 @@ run_eval <- function(
   epochs = 1,
   name = "eval",
   dir = "logs",
+  view = FALSE,
   ...
 ) {
-  # Create task
-  task <- create_task(
-    samples_dir = samples_dir,
-    system_prompt = system_prompt,
-    tools_dir = tools_dir,
-    tool_names = tool_names,
-    scorer_chat = scorer_chat,
-    scorer_instructions = scorer_instructions,
-    grade_levels = grade_levels,
-    epochs = epochs,
-    name = name,
-    dir = dir,
-    ...
-  )
+  # Normalize solver_chat to named list
+  if (!is.list(solver_chat) || inherits(solver_chat, "Chat")) {
+    # Single Chat object - wrap in named list
+    model_name <- tryCatch(
+      {
+        m <- solver_chat$turns()$system_prompt[[1]]$model
+        if (is.null(m)) "model" else m
+      },
+      error = function(e) "model"
+    )
+    solver_chats <- list(model_name)
+    names(solver_chats) <- model_name
+    solver_chats[[1]] <- solver_chat
+  } else {
+    # Already a list - validate it's named
+    solver_chats <- solver_chat
+    if (is.null(names(solver_chats)) || any(names(solver_chats) == "")) {
+      cli::cli_abort(
+        "When {.arg solver_chat} is a list, it must be a named list.
+        Example: {.code list(sonnet = chat1, opus = chat2)}"
+      )
+    }
+  }
 
-  # Run evaluation
-  task$eval(solver_chat = solver_chat)
+  # Run evaluation for each model
+  n_models <- length(solver_chats)
+  if (n_models > 1) {
+    cli::cli_alert_info("Running evaluation for {n_models} model{?s}")
+  }
 
-  # Return completed task
-  task
+  tasks <- list()
+  for (i in seq_along(solver_chats)) {
+    model_name <- names(solver_chats)[i]
+    chat <- solver_chats[[i]]
+
+    if (n_models > 1) {
+      cli::cli_h2("Evaluating model: {model_name}")
+    }
+
+    # Only source tools for the first model
+    task <- create_task(
+      samples_dir = samples_dir,
+      system_prompt = system_prompt,
+      tools_dir = if (i == 1) tools_dir else NULL,
+      tool_names = tool_names,
+      scorer_chat = scorer_chat,
+      scorer_instructions = scorer_instructions,
+      grade_levels = grade_levels,
+      epochs = epochs,
+      name = paste0(name, "_", model_name),
+      dir = dir,
+      ...
+    )
+
+    task$eval(solver_chat = chat, view = view)
+    tasks[[model_name]] <- task
+  }
+
+  if (n_models > 1) {
+    cli::cli_alert_success("Completed evaluation for all models")
+  }
+
+  # Combine results using vitals_bind()
+  results <- do.call(vitals::vitals_bind, tasks)
+
+  # Rename "task" column to "model"
+  results <- dplyr::rename(results, model = task)
+
+  # Store Task objects as attribute
+  attr(results, "tasks") <- tasks
+
+  results
 }
 
 #' Extract tool names from dataset
