@@ -84,10 +84,18 @@ create_scorer <- function(
       scorer_chat_clone <- scorer_chat$clone()
       responses <- ellmer::parallel_chat(scorer_chat_clone, as.list(prompts))
 
-      # Extract grades
+      # Extract grades (with error handling for failed requests)
       graded <- purrr::map_chr(responses, function(response_chat) {
-        response_text <- response_chat$last_turn()@text
-        extract_grade(response_text, levels = grade_levels)
+        tryCatch(
+          {
+            response_text <- response_chat$last_turn()@text
+            extract_grade(response_text, levels = grade_levels)
+          },
+          error = function(e) {
+            # If extraction fails, grade as incorrect
+            grade_levels[1]
+          }
+        )
       })
 
       grades[samples_to_grade] <- graded
@@ -96,9 +104,13 @@ create_scorer <- function(
       metadata <- purrr::map(seq_len(nrow(samples)), function(i) {
         if (i %in% samples_to_grade) {
           idx <- which(samples_to_grade == i)
+          response_text <- tryCatch(
+            responses[[idx]]$last_turn()@text,
+            error = function(e) paste("Error extracting response:", e$message)
+          )
           list(
             prompt = prompts[idx],
-            response = responses[[idx]]$last_turn()@text,
+            response = response_text,
             had_tool_call = TRUE
           )
         } else {
@@ -114,7 +126,13 @@ create_scorer <- function(
       scorer_chat_list <- purrr::map(seq_len(nrow(samples)), function(i) {
         if (i %in% samples_to_grade) {
           idx <- which(samples_to_grade == i)
-          responses[[idx]]
+          chat <- responses[[idx]]
+          # Check if this is a valid Chat object
+          if (inherits(chat, "Chat")) {
+            chat
+          } else {
+            create_mock_scorer_chat(scorer_chat, "Scorer request failed")
+          }
         } else {
           create_mock_scorer_chat(scorer_chat, "Tool was not called successfully")
         }
