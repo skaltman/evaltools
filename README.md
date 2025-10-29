@@ -1,31 +1,11 @@
 # evaltools
 
-Tools for creating LLM evaluations with tool-based tasks. Test language models' ability to use tools correctly and accurately describe their observations.
+Functions for creating LLM evaluations with tool-based tasks. Test language models' ability to use tools correctly and accurately describe their observations.
 
 ## Installation
 
 ```r
 remotes::install_github("skaltman/evaltools")
-```
-
-## Quick Start
-
-```r
-library(evaltools)
-
-# 1. Create a new project
-setup_eval()
-
-# 2. Customize tools/tool_create_plot.R and add samples
-
-# 3. Run evaluation
-task <- run_eval(
-  samples_dir = "samples/",
-  solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929")
-)
-
-task$results
-task$accuracy()
 ```
 
 ## How It Works
@@ -34,7 +14,11 @@ task$accuracy()
 2. **Create samples** in `samples/` - YAML files describing evaluation scenarios
 3. **Run evaluation** - `run_eval()` automatically loads tools, runs samples, and grades with LLM judge
 
-### Example Tool
+You can also run `setup_eval()` to create the necessary directories and a sample YAML file. 
+
+## Example
+
+### 1. Define a tool 
 
 ```r
 # tools/tool_create_plot.R
@@ -56,14 +40,14 @@ tool_create_plot <- function(env, name = "create_plot") {
 }
 ```
 
-### Example Sample
+### 2. Create samples, stored as YAML files
 
 ```yaml
 # samples/sample1.yaml
 id: positive_correlation
 tool:
   name: tool_create_plot
-  alias: make_plot  # Optional: different name shown to model
+  alias: make_plot  # If you don't want the actual tool name exposed to the model, define an alias
 input:
   setup: |
     df <- data.frame(x = 1:10, y = 1:10 + rnorm(10))
@@ -75,27 +59,21 @@ target: |
   The plot shows a positive correlation between x and y.
 ```
 
-## Key Features
+### 3. Run eval
 
-- **Automatic tool sourcing** - Place tools in `tools/` and they're auto-loaded
-- **Tool name aliasing** - Test different tool names shown to models
-- **LLM-as-judge scoring** - Configurable grading with language models
-- **YAML-based samples** - Simple format for evaluation scenarios
-- **Integrates with vitals** - Works with the vitals evaluation framework
+```r
+results <-
+  run_eval(
+    samples_dir = "samples/",
+    solver_chat = chat_anthropic(model = "claude-sonnet-4-5-20250929"),
+    system_prompt = "Accurately describe exactly what you observe in visualizations.",
+    name = "plot"
+  )
+```
 
-## Main Functions
-
-- `setup_eval()` - Create new project with templates
-- `run_eval()` - Run complete evaluation in one step
-- `create_task()` - Create task without running (for more control)
-
-See [vignette](vignettes/getting-started.md) for detailed walkthrough.
-
-## Related Packages
-
-- [ellmer](https://github.com/hadley/ellmer) - Chat interface for LLMs
-- [vitals](https://github.com/posit-dev/vitals) - Evaluation framework
-
-## License
-
-MIT
+```
+# A tibble: 1 × 4
+  model id                   score metadata        
+  <chr> <chr>                <ord> <list>          
+1 model positive_correlation C     <tibble [1 × 8]>
+```

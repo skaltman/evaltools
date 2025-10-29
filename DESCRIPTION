@@ -2,18 +2,15 @@ Package: evaltools
 Title: Tools for Creating LLM Evaluations with Tool-Based Tasks
 Version: 0.0.0.9000
 Authors@R:
-    person("Sara", "Altman", , "sara@posit.co", role = c("aut", "cre"))
-Description: Provides abstractions for creating LLM evaluations that test
-    language models' ability to use tools correctly. Includes factories for
-    solvers, scorers, and dataset loaders that work with the vitals Task
-    system. Supports tool name aliasing, YAML-based sample definitions,
-    and LLM-as-judge scoring.
+    person("Sara", "Altman", , "sara.altman@posit.co", role = c("aut", "cre"))
+Description: Create evaluations that test specific data-related abilities of an LLM. 
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Imports:
     cli,
+    dplyr,
     ellmer,
     glue,
     purrr,

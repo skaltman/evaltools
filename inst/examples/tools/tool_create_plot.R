@@ -24,10 +24,10 @@ tool_create_plot <- function(env, name = "create_plot") {
       )
     },
     name = name,
-    description = "Create a ggplot visualization from R code",
+    description = "Create a plot using ggplot2",
     arguments = list(
       code = ellmer::type_string(
-        "R code that begins with library(ggplot2) and creates a ggplot object"
+        "R code to create a ggplot. Should start with library(ggplot2) and return a ggplot object."
       )
     )
   )

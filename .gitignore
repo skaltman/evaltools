@@ -51,3 +51,6 @@ rsconnect/
 # Evaluation logs
 logs/
 docs
+
+/.quarto/
+**/*.quarto_ipynb

@@ -1,7 +1,7 @@
 id: positive_correlation
 type: baseline
 tool:
-  name: tool_create_plot  # Name of your R function
+  name: tool_create_plot  # Name of the tools
   alias: make_plot        # Optional: name shown to model
 input:
   setup: |
@@ -14,7 +14,7 @@ input:
   teardown: |
     rm(df)
   prompt: |
-    plot x and y in the df dataset. then tell me what you see. 
+    can you plot the `x` and `y` columns from df and tell me what you see?
 target: |
   The plot shows a positive correlation between x and y. As x increases,
   y also increases.

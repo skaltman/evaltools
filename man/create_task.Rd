@@ -2,7 +2,7 @@
 % Please edit documentation in R/run-eval.R
 \name{create_task}
 \alias{create_task}
-\title{Create an evaluation task from a samples directory}
+\title{Create an evaluation task}
 \usage{
 create_task(
   samples_dir,
@@ -19,45 +19,42 @@ create_task(
 )
 }
 \arguments{
-\item{samples_dir}{Character string path to directory containing YAML sample files.}
+\item{samples_dir}{Path to directory with YAML sample files.}
 
-\item{system_prompt}{Optional character string with system prompt for all samples.
-Default is NULL (no system prompt).}
+\item{system_prompt}{System prompt to prepend to all samples. Default NULL.}
 
-\item{tools_dir}{Character string path to directory containing tool factory R files
-to source. Default is "tools". Set to NULL to disable auto-sourcing (e.g., if
-tools are already loaded from a package).}
+\item{tools_dir}{Path to directory with tool R files to source. Default "tools".
+Set to NULL if tools are already loaded (e.g., from a package).}
 
-\item{tool_names}{Character vector of tool names to check for in scorer.
-If NULL (default), automatically extracts tool names from the dataset's
-tool aliases. You only need to specify this if you want to check for
-additional tool names beyond what's in the YAML files.}
+\item{tool_names}{Tool names to check in scorer. Default NULL auto-detects from
+YAML files.}
 
-\item{scorer_chat}{Optional ellmer Chat object for judging. Default uses
-Claude Sonnet 4.5.}
+\item{scorer_chat}{Chat object for LLM judge. Default uses Claude Sonnet 4.5.}
 
-\item{scorer_instructions}{Optional custom instructions for the LLM judge.
-Default uses standard Correct/Incorrect instructions.}
+\item{scorer_instructions}{Custom instructions for the judge. Default uses
+Correct/Incorrect grading.}
 
-\item{grade_levels}{Character vector of valid grade levels. Default is
-c("I", "C") for Incorrect/Correct.}
+\item{grade_levels}{Valid grades. Default \code{c("I", "C")}.}
 
-\item{epochs}{Number of evaluation epochs. Default is 1.}
+\item{epochs}{Number of evaluation runs. Default 1.}
 
-\item{name}{Name for the evaluation task. Default is "eval".}
+\item{name}{Task name. Default "eval".}
 
-\item{dir}{Directory for logging results. Default is "logs".}
+\item{dir}{Logging directory. Default "logs".}
 
-\item{...}{Additional arguments passed to create_solver() (e.g., prompt_field,
+\item{...}{Additional arguments for \code{create_solver()} (e.g., prompt_field,
 setup_field, sleep_time).}
+
+\item{view}{Open interactive viewer after running? Default FALSE. If you get
+port conflicts, use \code{vitals::vitals_view(port = custom_port)} instead.}
 }
 \value{
-A vitals::Task object ready to run with \code{task$eval(solver_chat)}.
+A Task object. Call \code{task$eval(solver_chat)} to run it.
 }
 \description{
-Convenience function that loads a dataset from YAML files and creates a
-vitals::Task with solver and scorer. This abstracts away the common pattern
-of loading data, creating solver/scorer, and building a task.
+Load YAML samples and create a task with solver and scorer. Usually you'll
+use \code{run_eval()} instead, which calls this function and runs the
+evaluation automatically.
 }
 \examples{
 \dontrun{

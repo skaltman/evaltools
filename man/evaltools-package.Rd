@@ -6,10 +6,10 @@
 \alias{evaltools-package}
 \title{evaltools: Tools for Creating LLM Evaluations with Tool-Based Tasks}
 \description{
-Provides abstractions for creating LLM evaluations that test language models' ability to use tools correctly. Includes factories for solvers, scorers, and dataset loaders that work with the vitals Task system. Supports tool name aliasing, YAML-based sample definitions, and LLM-as-judge scoring.
+Create evaluations that test specific data-related abilities of an LLM.
 }
 \author{
-\strong{Maintainer}: Sara Altman \email{sara@posit.co}
+\strong{Maintainer}: Sara Altman \email{sara.altman@posit.co}
 
 }
 \keyword{internal}

@@ -120,17 +120,23 @@ target: |
 The easiest way is to use `run_eval()` which handles everything in one step:
 
 ```r
+library(dplyr)
+
 # Run evaluation - tools are automatically sourced!
-task <- run_eval(
+# Returns a tibble of results
+results <- run_eval(
   samples_dir = "samples/",
   solver_chat = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
   system_prompt = "You are a data analyst. Describe exactly what you observe in visualizations.",
   name = "my_plot_eval"
 )
 
-# Results are ready!
-print(task$results)
-print(task$accuracy())
+# Calculate accuracy
+results |>
+  summarize(accuracy = mean(score == "C"))
+
+# View results
+print(results)
 ```
 
 That's it! The function automatically:
@@ -139,7 +145,49 @@ That's it! The function automatically:
 - Detects tool names from the YAML (both `name` and `alias` fields)
 - Creates the solver and scorer
 - Runs the evaluation
-- Returns a completed task
+- Returns a tibble of results with a `model` column
+
+### Evaluating Multiple Models
+
+To compare multiple models at once, pass a named list of chat objects to `solver_chat`:
+
+```r
+# Evaluate multiple models and compare results
+results <- run_eval(
+  samples_dir = "samples/",
+  solver_chat = list(
+    sonnet = ellmer::chat_anthropic(model = "claude-sonnet-4-5-20250929"),
+    opus = ellmer::chat_anthropic(model = "claude-opus-4-20250514"),
+    haiku = ellmer::chat_anthropic(model = "claude-3-5-haiku-20241022")
+  ),
+  system_prompt = "You are a data analyst. Describe exactly what you observe in visualizations.",
+  name = "multi_model_eval"
+)
+
+# Compare accuracy by model
+results |>
+  group_by(model) |>
+  summarize(
+    n_samples = n(),
+    accuracy = mean(score == "C")
+  )
+#   model  n_samples accuracy
+#   sonnet        10     0.80
+#   opus          10     0.90
+#   haiku         10     0.70
+
+# View all results (includes model column)
+results
+
+# Access original Task objects if needed for advanced use
+tasks <- attr(results, "tasks")
+tasks$sonnet$accuracy()
+```
+
+When multiple models are provided, `run_eval()` automatically:
+- Runs each model sequentially on all samples
+- Combines results into a single tibble with a `model` column
+- Stores original Task objects as an attribute for advanced access
 
 ### Step-by-Step Approach (More Control)
 
@@ -196,20 +244,29 @@ print(task$accuracy())
 ## Step 5: Inspect Results
 
 ```r
-# Get detailed results
-results <- task$results
+# Results is a tibble with nested metadata
+results
+
+# See all columns (including nested metadata)
+tidyr::unnest(results, metadata)
+
+# Extract specific fields from metadata
+results |>
+  tidyr::unnest_wider(metadata) |>
+  select(model, id, score, result, target)
 
 # See model responses
-results$result
-
-# See scores
-results$score
+results$metadata[[1]]$result
 
 # See scorer metadata (judge prompts and responses)
-results$scorer_metadata[[1]]
+results$metadata[[1]]$scorer_metadata
 
 # View chat history for a sample
-results$solver_chat[[1]]$get_turns()
+results$metadata[[1]]$solver_chat$get_turns()
+
+# Access original Task objects if needed
+tasks <- attr(results, "tasks")
+tasks[[1]]$results  # Full task results
 ```
 
 ## Customization Options
