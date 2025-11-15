@@ -27,6 +27,7 @@ A tibble with columns:
 \item{type}{Optional type/category of the sample}
 \item{input}{List-column containing input data (prompt, setup, teardown, tool spec)}
 \item{target}{Expected observation for scoring}
+\item{...}{Any additional columns from metadata fields in the YAML}
 }
 }
 \description{
@@ -42,6 +43,10 @@ type: baseline              # optional
 tool:
   name: tool_create_plot     # R function name
   alias: make_plot           # optional
+metadata:                    # optional - custom fields
+  difficulty: easy
+  n_geoms: 2
+  any_custom_field: value
 input:
   setup: |
     # R code
@@ -52,6 +57,10 @@ input:
 target: |
   # Expected observation
 }
+
+Any fields in the \code{metadata} section will be added as columns
+in the returned tibble, allowing you to store and analyze additional
+information about each sample.
 }
 \examples{
 \dontrun{

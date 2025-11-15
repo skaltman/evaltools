@@ -17,6 +17,7 @@
 #'     \item{type}{Optional type/category of the sample}
 #'     \item{input}{List-column containing input data (prompt, setup, teardown, tool spec)}
 #'     \item{target}{Expected observation for scoring}
+#'     \item{...}{Any additional columns from metadata fields in the YAML}
 #'   }
 #'
 #' @details
@@ -27,6 +28,10 @@
 #' tool:
 #'   name: tool_create_plot     # R function name
 #'   alias: make_plot           # optional
+#' metadata:                    # optional - custom fields
+#'   difficulty: easy
+#'   n_geoms: 2
+#'   any_custom_field: value
 #' input:
 #'   setup: |
 #'     # R code
@@ -37,6 +42,10 @@
 #' target: |
 #'   # Expected observation
 #' }
+#'
+#' Any fields in the \code{metadata} section will be added as columns
+#' in the returned tibble, allowing you to store and analyze additional
+#' information about each sample.
 #'
 #' @export
 #'
@@ -85,8 +94,8 @@ load_yaml_dataset <- function(
       validate_sample(sample, file, required_fields)
     }
 
-    # Create tibble row
-    tibble::tibble(
+    # Create base tibble row
+    row <- tibble::tibble(
       id = sample$id,
       type = if (!is.null(sample$type)) sample$type else NA_character_,
       input = list(
@@ -104,6 +113,15 @@ load_yaml_dataset <- function(
       ),
       target = sample$target
     )
+
+    # Add metadata fields if present
+    if (!is.null(sample$metadata)) {
+      for (meta_field in names(sample$metadata)) {
+        row[[meta_field]] <- sample$metadata[[meta_field]]
+      }
+    }
+
+    row
   })
 
   # Combine into single tibble
