@@ -1,6 +1,6 @@
 # evaltools
 
-Functions for creating LLM evaluations with tool-based tasks. Test language models' ability to use tools correctly and accurately describe their observations.
+Functions for creating LLM evaluations with tool-based tasks. Test language models' ability to use tools correctly and accurately describe their observations. An abstraction of https://github.com/simonpcouch/bluffbench. 
 
 ## Installation
 
