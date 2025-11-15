@@ -240,6 +240,20 @@ run_eval <- function(
   # Rename "task" column to "model"
   results <- dplyr::rename(results, model = task)
 
+  # Preserve metadata columns from the original dataset
+  # Load the dataset again to get metadata columns
+  dataset <- load_yaml_dataset(samples_dir)
+
+  # Find metadata columns (everything except id, type, input, target)
+  standard_cols <- c("id", "type", "input", "target")
+  metadata_cols <- setdiff(names(dataset), standard_cols)
+
+  # If there are metadata columns, join them back into results
+  if (length(metadata_cols) > 0) {
+    metadata_df <- dataset[, c("id", metadata_cols), drop = FALSE]
+    results <- dplyr::left_join(results, metadata_df, by = "id")
+  }
+
   # Store Task objects as attribute
   attr(results, "tasks") <- tasks
 
