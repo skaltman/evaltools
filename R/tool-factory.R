@@ -1,32 +1,38 @@
 #' Instantiate a tool from a factory function
 #'
-#' Creates a tool by calling a factory function with optional name aliasing.
-#' The factory function should accept at minimum an `env` parameter for the
-#' execution environment, and optionally a `name` parameter for aliasing.
+#' Creates a tool by calling a factory function with optional name aliasing and
+#' solver chat context. The factory function should accept at minimum an `env`
+#' parameter for the execution environment, and optionally `name` and
+#' `solver_chat` parameters.
 #'
 #' @param factory_name Character string naming the factory function to call.
 #'   The function should follow the convention of accepting `env` and
-#'   optionally `name` parameters.
+#'   optionally `name` and `solver_chat` parameters.
 #' @param env Environment in which the tool's code will execute.
 #' @param alias Optional character string to use as the tool's name instead
 #'   of the factory's default. If the factory function accepts a `name`
 #'   parameter, this will be passed to it.
+#' @param solver_chat Optional Chat object from ellmer. If provided and the
+#'   factory accepts a `solver_chat` parameter, this will be passed to enable
+#'   features like model-in-the-middle interpretation.
 #'
 #' @return An ellmer tool object returned by the factory function.
 #'
 #' @details
 #' Tool factory functions should follow this signature:
-#' \code{tool_factory(env, name = NULL)}
+#' \code{tool_factory(env, name = NULL, solver_chat = NULL)}
 #'
 #' If \code{name} is NULL, the factory should use its default name.
 #' If \code{name} is provided, it should create the tool with that name.
+#' If \code{solver_chat} is provided, the factory can use it for advanced
+#' features like model-in-the-middle interpretation.
 #'
 #' @export
 #'
 #' @examples
 #' \dontrun{
 #' # Define a tool factory
-#' tool_create_plot <- function(env, name = "create_plot") {
+#' tool_create_plot <- function(env, name = "create_plot", solver_chat = NULL) {
 #'   ellmer::tool(
 #'     function(code) run_code(code, env),
 #'     name = name,
@@ -39,28 +45,36 @@
 #'
 #' # Instantiate with alias
 #' tool2 <- instantiate_tool("tool_create_plot", new.env(), alias = "make_plot")
+#'
+#' # Instantiate with solver_chat for model-in-the-middle
+#' chat <- ellmer::chat("anthropic/claude-sonnet-4-5-20250929")
+#' tool3 <- instantiate_tool("tool_create_plot", new.env(), solver_chat = chat)
 #' }
-instantiate_tool <- function(factory_name, env, alias = NULL) {
+instantiate_tool <- function(factory_name, env, alias = NULL, solver_chat = NULL) {
   # Get the factory function
   factory_fn <- get(factory_name, mode = "function")
 
-  # Check if factory accepts a name parameter
+  # Check if factory accepts name and solver_chat parameters
   factory_args <- names(formals(factory_fn))
 
-  if ("name" %in% factory_args && !is.null(alias)) {
-    # Call factory with custom name
-    tool <- factory_fn(env = env, name = alias)
-  } else {
-    # Call factory with just env
-    tool <- factory_fn(env = env)
+  # Build arguments to pass to factory
+  call_args <- list(env = env)
 
-    if (!is.null(alias)) {
-      cli::cli_warn(
-        "Factory {.fn {factory_name}} does not accept a {.arg name} parameter.
-        Alias {.val {alias}} will be ignored."
-      )
-    }
+  if ("name" %in% factory_args && !is.null(alias)) {
+    call_args$name <- alias
+  } else if (!is.null(alias)) {
+    cli::cli_warn(
+      "Factory {.fn {factory_name}} does not accept a {.arg name} parameter.
+      Alias {.val {alias}} will be ignored."
+    )
   }
+
+  if ("solver_chat" %in% factory_args && !is.null(solver_chat)) {
+    call_args$solver_chat <- solver_chat
+  }
+
+  # Call factory with appropriate arguments
+  tool <- do.call(factory_fn, call_args)
 
   tool
 }

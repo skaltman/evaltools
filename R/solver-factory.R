@@ -99,7 +99,8 @@ create_solver <- function(
       tool <- instantiate_tool(
         factory_name = tool_factory_name,
         env = env,
-        alias = tool_alias
+        alias = tool_alias,
+        solver_chat = solver_chat
       )
 
       ch_i$register_tool(tool)
